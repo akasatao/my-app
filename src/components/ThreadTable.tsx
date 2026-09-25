@@ -1,50 +1,37 @@
 import Link from "next/link";
+import { cardClass } from "@/components/ui";
 import { formatBoardDate } from "@/lib/format";
 import type { Thread } from "@/lib/types";
 
 export function ThreadTable({ threads }: { threads: Thread[] }) {
   if (threads.length === 0) {
     return (
-      <p className="border border-gray-400 bg-white p-3 text-sm">
-        まだスレッドがありません。最初のスレッドを立ててください。
-      </p>
+      <div className={`p-8 text-center ${cardClass}`}>
+        <p className="text-slate-900 font-medium">まだスレッドがありません</p>
+        <p className="mt-1 text-sm text-slate-500">
+          最初の話題を投稿して、ラウンジを始めましょう。
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-400 bg-white">
-      <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-400 bg-[#d0d8e8]">
-            <th className="px-2 py-1 font-bold">No.</th>
-            <th className="px-2 py-1 font-bold">タイトル</th>
-            <th className="px-2 py-1 font-bold">レス</th>
-            <th className="px-2 py-1 font-bold">作成日時</th>
-          </tr>
-        </thead>
-        <tbody>
-          {threads.map((thread, index) => (
-            <tr
-              key={thread.id}
-              className="border-b border-gray-300 odd:bg-white even:bg-[#f7f9fc]"
-            >
-              <td className="px-2 py-1 align-top">{index + 1}</td>
-              <td className="px-2 py-1">
-                <Link
-                  href={`/thread/${thread.id}`}
-                  className="text-[#0000cc] underline hover:text-red-700"
-                >
-                  {thread.title}
-                </Link>
-              </td>
-              <td className="px-2 py-1 align-top">{thread.postCount}</td>
-              <td className="px-2 py-1 align-top whitespace-nowrap">
-                {formatBoardDate(thread.createdAt)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul className="space-y-3">
+      {threads.map((thread) => (
+        <li key={thread.id}>
+          <Link
+            href={`/thread/${thread.id}`}
+            className={`block p-5 transition duration-150 hover:border-sky-200 hover:shadow-md ${cardClass}`}
+          >
+            <h3 className="text-lg font-semibold text-slate-950">{thread.title}</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              {thread.postCount} 件の投稿
+              <span> · </span>
+              {formatBoardDate(thread.createdAt)}
+            </p>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

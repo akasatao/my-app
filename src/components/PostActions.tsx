@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { deletePost, updatePost } from "@/app/actions";
+import {
+  fieldClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from "@/components/ui";
 
 export function PostActions({
   threadId,
@@ -18,12 +23,15 @@ export function PostActions({
 
   if (editing) {
     return (
-      <form action={updatePost} className="mt-2 border border-gray-400 bg-white p-2">
+      <form action={updatePost} className="mt-4 space-y-3">
         <input type="hidden" name="threadId" value={threadId} />
         <input type="hidden" name="postId" value={postId} />
-        <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center">
-          <label className="w-16 shrink-0 text-sm" htmlFor={`edit-name-${postId}`}>
-            名前
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+            htmlFor={`edit-name-${postId}`}
+          >
+            表示名
           </label>
           <input
             id={`edit-name-${postId}`}
@@ -31,7 +39,7 @@ export function PostActions({
             defaultValue={name === "名無しさん" ? "" : name}
             placeholder="名無しさん"
             maxLength={20}
-            className="w-full border border-gray-500 px-2 py-1 text-sm sm:max-w-xs"
+            className={`${fieldClass} sm:max-w-xs`}
           />
         </div>
         <textarea
@@ -40,19 +48,16 @@ export function PostActions({
           rows={5}
           maxLength={4000}
           defaultValue={body}
-          className="w-full border border-gray-500 px-2 py-1 text-sm"
+          className={fieldClass}
         />
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="border border-gray-600 bg-[#eee] px-3 py-1 text-sm hover:bg-[#ddd]"
-          >
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className={primaryButtonClass}>
             保存
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="border border-gray-600 bg-[#eee] px-3 py-1 text-sm hover:bg-[#ddd]"
+            className={secondaryButtonClass}
           >
             キャンセル
           </button>
@@ -62,25 +67,25 @@ export function PostActions({
   }
 
   return (
-    <div className="mt-1 flex flex-wrap gap-x-3 text-xs">
+    <div className="mt-4 flex flex-wrap gap-4 text-sm">
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="text-[#0000cc] underline hover:text-red-700"
+        className="font-medium text-sky-600 hover:text-sky-700"
       >
         編集
       </button>
       <form
         action={deletePost}
         onSubmit={(event) => {
-          if (!window.confirm("このレスを削除しますか？")) {
+          if (!window.confirm("この投稿を削除しますか？")) {
             event.preventDefault();
           }
         }}
       >
         <input type="hidden" name="threadId" value={threadId} />
         <input type="hidden" name="postId" value={postId} />
-        <button type="submit" className="text-[#0000cc] underline hover:text-red-700">
+        <button type="submit" className="font-medium text-slate-500 hover:text-slate-800">
           削除
         </button>
       </form>

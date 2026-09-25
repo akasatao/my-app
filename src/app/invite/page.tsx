@@ -1,4 +1,4 @@
-import { BoardHeader } from "@/components/BoardHeader";
+import { AppNav } from "@/components/AppNav";
 import { InviteForm } from "@/components/InviteForm";
 import { isInvited } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -17,11 +17,11 @@ export default async function InvitePage({
   const { error } = await searchParams;
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-6">
-      <BoardHeader />
-      <div className="mt-8">
+    <>
+      <AppNav />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-24">
         <InviteForm error={error} />
       </div>
-    </div>
+    </>
   );
 }

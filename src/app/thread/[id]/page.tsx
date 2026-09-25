@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BoardHeader } from "@/components/BoardHeader";
+import { PageShell } from "@/components/AppNav";
 import { PostItem } from "@/components/PostItem";
 import { ReplyForm } from "@/components/ReplyForm";
 import { getPosterSeed, requireInvite } from "@/lib/auth";
@@ -29,18 +29,18 @@ export default async function ThreadPage({
   const authorKey = seed ? stableAuthorKey(seed) : "";
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6">
-      <BoardHeader title={data.thread.title} />
-      <p className="mt-2 text-xs">
-        <Link href="/" className="text-[#0000cc] underline hover:text-red-700">
-          スレッド一覧
+    <PageShell>
+      <p className="mb-4 text-sm">
+        <Link href="/" className="font-medium text-sky-600 hover:text-sky-700">
+          ← スレッド一覧
         </Link>
-        <span>{" ／ "}</span>
-        <a href="#form" className="text-[#0000cc] underline hover:text-red-700">
-          書き込みフォームへ
+        <span className="mx-2 text-slate-300">·</span>
+        <a href="#form" className="font-medium text-sky-600 hover:text-sky-700">
+          返信フォームへ
         </a>
       </p>
-      <section className="mt-3 border border-gray-400 bg-[#f7f9fc] px-3 py-2 sm:px-4">
+      <h1 className="mb-6 text-3xl font-bold text-slate-950">{data.thread.title}</h1>
+      <section className="space-y-4">
         {data.posts.map((post) => (
           <PostItem
             key={post.id}
@@ -49,9 +49,9 @@ export default async function ThreadPage({
           />
         ))}
       </section>
-      <section className="mt-6" id="form">
+      <section className="mt-10" id="form">
         <ReplyForm threadId={data.thread.id} error={error} />
       </section>
-    </div>
+    </PageShell>
   );
 }

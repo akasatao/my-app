@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #eff3f8;
-  --foreground: #000000;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -17,6 +17,6 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "MS PGothic", "Hiragino Kaku Gothic ProN", "Hiragino Sans",
-    Meiryo, sans-serif;
+  font-family: ui-sans-serif, system-ui, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", sans-serif;
 }

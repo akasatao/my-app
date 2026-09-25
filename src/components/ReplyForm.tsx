@@ -1,4 +1,5 @@
 import { addReply } from "@/app/actions";
+import { cardClass, fieldClass, primaryButtonClass } from "@/components/ui";
 
 export function ReplyForm({
   threadId,
@@ -8,57 +9,53 @@ export function ReplyForm({
   error?: string;
 }) {
   return (
-    <form
-      action={addReply}
-      className="border border-gray-400 bg-white p-3"
-    >
-      <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-bold">
-        レスを書く
-      </h2>
+    <form action={addReply} className={`p-6 ${cardClass}`}>
+      <h2 className="mb-5 text-lg font-semibold text-slate-950">返信する</h2>
       {error === "1" ? (
-        <p className="mb-2 text-sm text-red-700">本文は必須です。</p>
+        <p className="mb-4 text-sm text-red-600">本文は必須です。</p>
       ) : null}
       {error === "2" ? (
-        <p className="mb-2 text-sm text-red-700">入力が長すぎます。</p>
+        <p className="mb-4 text-sm text-red-600">入力が長すぎます。</p>
       ) : null}
       {error === "3" ? (
-        <p className="mb-2 text-sm text-red-700">
-          このレスは編集・削除できません。
-        </p>
+        <p className="mb-4 text-sm text-red-600">この投稿は編集・削除できません。</p>
       ) : null}
       <input type="hidden" name="threadId" value={threadId} />
-      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center">
-        <label className="w-24 shrink-0 text-sm" htmlFor="reply-name">
-          名前
-        </label>
-        <input
-          id="reply-name"
-          name="name"
-          placeholder="名無しさん"
-          maxLength={20}
-          className="w-full border border-gray-500 px-2 py-1 text-sm sm:max-w-xs"
-        />
-      </div>
-      <div className="mb-2 flex flex-col gap-1 sm:flex-row">
-        <label className="w-24 shrink-0 text-sm" htmlFor="reply-body">
-          本文
-        </label>
-        <textarea
-          id="reply-body"
-          name="body"
-          required
-          rows={6}
-          maxLength={4000}
-          placeholder=">>1 のようにアンカーを書けます"
-          className="w-full border border-gray-500 px-2 py-1 text-sm"
-        />
-      </div>
-      <div className="sm:pl-24">
-        <button
-          type="submit"
-          className="border border-gray-600 bg-[#eee] px-4 py-1 text-sm hover:bg-[#ddd]"
-        >
-          書き込む
+      <div className="space-y-4">
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+            htmlFor="reply-name"
+          >
+            表示名
+          </label>
+          <input
+            id="reply-name"
+            name="name"
+            placeholder="名無しさん"
+            maxLength={20}
+            className={`${fieldClass} sm:max-w-xs`}
+          />
+        </div>
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+            htmlFor="reply-body"
+          >
+            メッセージ
+          </label>
+          <textarea
+            id="reply-body"
+            name="body"
+            required
+            rows={5}
+            maxLength={4000}
+            placeholder="#1 へ返信する場合は >>1 と書けます"
+            className={fieldClass}
+          />
+        </div>
+        <button type="submit" className={primaryButtonClass}>
+          投稿する
         </button>
       </div>
     </form>

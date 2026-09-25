@@ -4,7 +4,7 @@ function splitAnchors(body: string) {
 
 export function PostBody({ body }: { body: string }) {
   return (
-    <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6">
+    <p className="whitespace-pre-wrap break-words text-slate-800 leading-relaxed">
       {splitAnchors(body).map((part, index) => {
         const match = part.match(/^>>(\d+)$/);
         if (!match) {
@@ -14,9 +14,9 @@ export function PostBody({ body }: { body: string }) {
           <a
             key={index}
             href={`#${match[1]}`}
-            className="text-[#0000cc] underline hover:text-red-700"
+            className="mx-0.5 inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-sm font-medium text-sky-700 no-underline hover:bg-sky-100"
           >
-            {part}
+            #{match[1]}
           </a>
         );
       })}
