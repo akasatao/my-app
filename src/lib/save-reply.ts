@@ -2,8 +2,10 @@ import { getOrCreatePosterSeed, getUserName } from "@/lib/auth";
 import { getBoard } from "@/lib/board";
 import { displayName } from "@/lib/format";
 import { parseMedia } from "@/lib/media";
+import { fileToDataUrl, uploadMediaFile } from "@/lib/media-storage";
 import { dailyPosterId, stableAuthorKey } from "@/lib/poster-id";
 import { stripLeadingReplyMarker } from "@/lib/reply-marker";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Post } from "@/lib/types";
 
 export async function saveReply(input: {
@@ -12,12 +14,24 @@ export async function saveReply(input: {
   replyTo?: number;
   mediaUrl?: string;
   mediaType?: string;
+  mediaFile?: File | null;
 }): Promise<{ post: Post | null; error?: "empty" | "too_long" | "media" }> {
   const body = stripLeadingReplyMarker(input.body.trim());
   const name = displayName(await getUserName());
-  const media = parseMedia(input.mediaUrl ?? "", input.mediaType ?? "");
+  let media = parseMedia(input.mediaUrl ?? "", input.mediaType ?? "");
 
-  if (input.mediaUrl && !media) {
+  if (input.mediaFile && input.mediaFile.size > 0) {
+    try {
+      media = isSupabaseConfigured()
+        ? await uploadMediaFile(input.mediaFile)
+        : await fileToDataUrl(input.mediaFile);
+    } catch (error) {
+      console.error(error);
+      return { post: null, error: "media" };
+    }
+  }
+
+  if (input.mediaUrl && !media && !(input.mediaFile && input.mediaFile.size > 0)) {
     return { post: null, error: "media" };
   }
 

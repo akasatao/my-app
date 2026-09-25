@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { addReply } from "@/app/actions";
 import { useReplyComposer } from "@/components/ReplyComposer";
 import { ReplyTargetPreview } from "@/components/ReplyTargetPreview";
-import type { MediaType } from "@/lib/media";
+import { detectMediaType, type MediaType } from "@/lib/media";
 
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_FILE_BYTES = 12 * 1024 * 1024;
 
 export function ChatComposer({
   threadId,
@@ -21,54 +21,46 @@ export function ChatComposer({
   const [mediaError, setMediaError] = useState("");
 
   function clearMedia() {
+    if (media?.url.startsWith("blob:")) URL.revokeObjectURL(media.url);
     setMedia(null);
     setMediaError("");
     if (fileRef.current) fileRef.current.value = "";
   }
 
   function attachFile(file: File) {
-    const type: MediaType | null = file.type.startsWith("image/")
-      ? "image"
-      : file.type.startsWith("video/")
-        ? "video"
-        : null;
-
+    const type = detectMediaType(file);
     if (!type) {
-      setMediaError("画像または動画を選んでください。");
+      setMediaError("画像・動画・音声ファイルを選んでください。");
       return false;
     }
 
     if (file.size > MAX_FILE_BYTES) {
-      setMediaError("ファイルは 4MB 以下にしてください。");
+      setMediaError("ファイルは 12MB 以下にしてください。");
       return false;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
-      setMedia({ url: reader.result, type });
-      setMediaError("");
-    };
-    reader.readAsDataURL(file);
+    setMedia((current) => {
+      if (current?.url.startsWith("blob:")) URL.revokeObjectURL(current.url);
+      return { url: URL.createObjectURL(file), type };
+    });
+    setMediaError("");
     return true;
   }
 
   function attachFromClipboard(clipboard: DataTransfer | null) {
     if (!clipboard) return false;
 
-    for (const item of clipboard.items) {
-      if (!item.type.startsWith("image/") && !item.type.startsWith("video/")) {
-        continue;
-      }
-      const file = item.getAsFile();
-      if (!file) continue;
-      attachFile(file);
-      return true;
-    }
+    const candidates = [
+      ...[...clipboard.items].map((item) => item.getAsFile()),
+      ...clipboard.files,
+    ].filter((file): file is File => Boolean(file));
 
-    for (const file of clipboard.files) {
-      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-        continue;
+    for (const file of candidates) {
+      if (!detectMediaType(file)) continue;
+      if (fileRef.current) {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        fileRef.current.files = transfer.files;
       }
       attachFile(file);
       return true;
@@ -128,8 +120,10 @@ export function ChatComposer({
               {media.type === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={media.url} alt="" className="h-16 w-16 object-cover" />
-              ) : (
+              ) : media.type === "video" ? (
                 <video src={media.url} muted className="h-16 w-16 object-cover" />
+              ) : (
+                <audio src={media.url} controls className="h-10 max-w-[16rem]" />
               )}
               <button
                 type="button"
@@ -145,18 +139,18 @@ export function ChatComposer({
         <form action={addReply} className="flex items-end gap-2">
           <input type="hidden" name="threadId" value={threadId} />
           <input type="hidden" name="replyTo" value={target ? String(target.resNumber) : ""} />
-          <input type="hidden" name="mediaUrl" value={media?.url ?? ""} />
           <input type="hidden" name="mediaType" value={media?.type ?? ""} />
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,video/*"
+            name="media"
+            accept="image/*,video/*,audio/*"
             className="hidden"
             onChange={onFile}
           />
           <button
             type="button"
-            aria-label="写真または動画を添付"
+            aria-label="写真・動画・音声を添付"
             onClick={() => fileRef.current?.click()}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg text-slate-600 transition hover:border-sky-200 hover:text-sky-700"
           >

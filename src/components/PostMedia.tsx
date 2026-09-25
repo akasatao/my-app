@@ -12,6 +12,18 @@ export function PostMedia({
 }) {
   const [open, setOpen] = useState(false);
 
+  if (type === "audio") {
+    return (
+      <div
+        className="mt-3 w-full max-w-md rounded-2xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200"
+        data-no-reply-menu
+      >
+        <p className="mb-1.5 text-xs font-medium text-slate-500">音声</p>
+        <audio src={url} controls preload="metadata" className="w-full" />
+      </div>
+    );
+  }
+
   if (type === "video") {
     return (
       <div

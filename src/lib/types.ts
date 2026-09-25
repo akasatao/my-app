@@ -21,7 +21,7 @@ export type Post = {
   /** 返信先のレス番号。本文には埋め込まない。 */
   replyTo?: number;
   mediaUrl?: string;
-  mediaType?: "image" | "video";
+  mediaType?: "image" | "video" | "audio";
 };
 
 export type CreateThreadInput = {
@@ -40,7 +40,7 @@ export type AddPostInput = {
   authorKey: string;
   replyTo?: number;
   mediaUrl?: string;
-  mediaType?: "image" | "video";
+  mediaType?: "image" | "video" | "audio";
 };
 
 export type UpdatePostInput = {

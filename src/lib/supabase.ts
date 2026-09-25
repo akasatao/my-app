@@ -12,10 +12,25 @@ export function isSupabaseConfigured() {
 }
 
 let client: SupabaseClient | null = null;
+let adminClient: SupabaseClient | null = null;
+
+function supabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+}
+
+function anonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
+}
+
+function serviceRoleKey() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+  if (!key || key === "YOUR_SUPABASE_SERVICE_ROLE_KEY") return "";
+  return key;
+}
 
 export function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const url = supabaseUrl();
+  const key = anonKey();
 
   if (!url || !key) {
     throw new Error("Supabase の環境変数が設定されていません");
@@ -26,4 +41,23 @@ export function getSupabase() {
   }
 
   return client;
+}
+
+/** バケット作成・アップロード用。service_role があればそれを使う。 */
+export function getSupabaseAdmin() {
+  const url = supabaseUrl();
+  const key = serviceRoleKey() || anonKey();
+
+  if (!url || !key) {
+    throw new Error("Supabase の環境変数が設定されていません");
+  }
+
+  if (serviceRoleKey()) {
+    if (!adminClient) {
+      adminClient = createClient(url, key);
+    }
+    return adminClient;
+  }
+
+  return getSupabase();
 }

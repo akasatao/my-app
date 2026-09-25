@@ -91,6 +91,8 @@ export async function addReply(formData: FormData) {
   const body = readField(formData, "body");
   const mediaUrl = readField(formData, "mediaUrl");
   const mediaType = readField(formData, "mediaType");
+  const mediaValue = formData.get("media");
+  const mediaFile = mediaValue instanceof File && mediaValue.size > 0 ? mediaValue : null;
 
   if (!threadId) {
     redirect("/");
@@ -105,6 +107,7 @@ export async function addReply(formData: FormData) {
     replyTo,
     mediaUrl,
     mediaType,
+    mediaFile,
   });
 
   if (result.error === "empty") {

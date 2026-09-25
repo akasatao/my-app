@@ -16,93 +16,127 @@ type ThreadRow = {
   id: string;
   title: string;
   created_at: string;
-  updated_at: string;
-  post_count: number;
 };
 
 type PostRow = {
   id: string;
   thread_id: string;
-  res_number: number;
+  no: number;
   name: string;
   body: string;
-  created_at: string;
-  poster_id: string;
-  author_key: string;
-  edited_at: string | null;
-  deleted_at: string | null;
-  reply_to: number | null;
   media_url: string | null;
-  media_type: "image" | "video" | null;
+  media_type: "image" | "video" | "audio" | null;
+  reply_to_no: number | null;
+  reply_to_name: string | null;
+  reply_to_body: string | null;
+  user_id: string | null;
+  created_at: string;
 };
 
-function createId(prefix: string) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+const THREAD_COLUMNS = "id, title, created_at";
+const POST_COLUMNS =
+  "id, thread_id, no, name, body, media_url, media_type, reply_to_no, reply_to_name, reply_to_body, user_id, created_at";
+
+function createThreadId() {
+  return `thread_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function iso(value: string) {
   return new Date(value).toISOString();
 }
 
-function mapThread(row: ThreadRow): Thread {
+function mapThread(row: ThreadRow, postCount = 0, updatedAt?: string): Thread {
   return {
     id: row.id,
     title: row.title,
     createdAt: iso(row.created_at),
-    updatedAt: iso(row.updated_at),
-    postCount: row.post_count,
+    updatedAt: iso(updatedAt ?? row.created_at),
+    postCount,
   };
 }
 
 function mapPost(row: PostRow): Post {
+  const deleted = row.body === "削除されました";
   return {
-    id: row.id,
+    id: String(row.id),
     threadId: row.thread_id,
-    resNumber: row.res_number,
+    resNumber: row.no,
     name: row.name,
     body: row.body,
     createdAt: iso(row.created_at),
-    posterId: row.poster_id,
-    authorKey: row.author_key,
-    editedAt: row.edited_at ? iso(row.edited_at) : undefined,
-    deletedAt: row.deleted_at ? iso(row.deleted_at) : undefined,
-    replyTo: row.reply_to ?? undefined,
+    posterId: row.user_id ?? "",
+    authorKey: row.user_id ?? "",
+    deletedAt: deleted ? iso(row.created_at) : undefined,
+    replyTo: row.reply_to_no ?? undefined,
     mediaUrl: row.media_url ?? undefined,
-    mediaType: row.media_type ?? undefined,
+    mediaType:
+      row.media_type === "image" || row.media_type === "video" || row.media_type === "audio"
+        ? row.media_type
+        : undefined,
   };
 }
 
 class SupabaseBoardStore implements BoardRepository {
   async listThreads(): Promise<Thread[]> {
-    const { data, error } = await getSupabase()
+    const supabase = getSupabase();
+    const { data: threads, error: threadError } = await supabase
       .from("threads")
-      .select("*")
-      .order("updated_at", { ascending: false });
+      .select(THREAD_COLUMNS)
+      .order("created_at", { ascending: false });
 
-    if (error || !data) {
-      throw error ?? new Error("スレッド一覧の取得に失敗しました");
+    if (threadError || !threads) {
+      throw threadError ?? new Error("スレッド一覧の取得に失敗しました");
     }
 
-    return (data as ThreadRow[]).map(mapThread);
+    const { data: posts, error: postError } = await supabase
+      .from("posts")
+      .select("thread_id, no, created_at");
+
+    if (postError) throw postError;
+
+    const stats = new Map<string, { count: number; updatedAt: string }>();
+    for (const post of posts ?? []) {
+      const row = post as { thread_id: string; no: number; created_at: string };
+      const current = stats.get(row.thread_id);
+      if (!current) {
+        stats.set(row.thread_id, { count: 1, updatedAt: row.created_at });
+        continue;
+      }
+      current.count += 1;
+      if (Date.parse(row.created_at) > Date.parse(current.updatedAt)) {
+        current.updatedAt = row.created_at;
+      }
+    }
+
+    return (threads as ThreadRow[])
+      .map((thread) => {
+        const stat = stats.get(thread.id);
+        return mapThread(thread, stat?.count ?? 0, stat?.updatedAt);
+      })
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   }
 
   async getThread(id: string): Promise<Thread | null> {
     const { data, error } = await getSupabase()
       .from("threads")
-      .select("*")
+      .select(THREAD_COLUMNS)
       .eq("id", id)
       .maybeSingle();
 
     if (error) throw error;
-    return data ? mapThread(data as ThreadRow) : null;
+    if (!data) return null;
+
+    const posts = await this.getPosts(id);
+    const latest = posts.at(-1)?.createdAt;
+    return mapThread(data as ThreadRow, posts.length, latest);
   }
 
   async getPosts(threadId: string): Promise<Post[]> {
     const { data, error } = await getSupabase()
       .from("posts")
-      .select("*")
+      .select(POST_COLUMNS)
       .eq("thread_id", threadId)
-      .order("res_number", { ascending: true });
+      .order("no", { ascending: true });
 
     if (error || !data) {
       throw error ?? new Error("投稿の取得に失敗しました");
@@ -120,7 +154,7 @@ class SupabaseBoardStore implements BoardRepository {
 
   async createThread(input: CreateThreadInput): Promise<ThreadWithPosts> {
     const supabase = getSupabase();
-    const id = createId("thread");
+    const id = createThreadId();
     const createdAt = new Date().toISOString();
 
     const { data: threadRow, error: threadError } = await supabase
@@ -129,10 +163,8 @@ class SupabaseBoardStore implements BoardRepository {
         id,
         title: input.title,
         created_at: createdAt,
-        updated_at: createdAt,
-        post_count: 1,
       })
-      .select("*")
+      .select(THREAD_COLUMNS)
       .single();
 
     if (threadError || !threadRow) {
@@ -142,16 +174,19 @@ class SupabaseBoardStore implements BoardRepository {
     const { data: postRow, error: postError } = await supabase
       .from("posts")
       .insert({
-        id: createId("post"),
         thread_id: id,
-        res_number: 1,
+        no: 1,
         name: input.name,
         body: input.body,
+        media_url: null,
+        media_type: null,
+        reply_to_no: null,
+        reply_to_name: null,
+        reply_to_body: null,
+        user_id: input.authorKey,
         created_at: createdAt,
-        poster_id: input.posterId,
-        author_key: input.authorKey,
       })
-      .select("*")
+      .select(POST_COLUMNS)
       .single();
 
     if (postError || !postRow) {
@@ -160,7 +195,7 @@ class SupabaseBoardStore implements BoardRepository {
     }
 
     return {
-      thread: mapThread(threadRow as ThreadRow),
+      thread: mapThread(threadRow as ThreadRow, 1, createdAt),
       posts: [mapPost(postRow as PostRow)],
     };
   }
@@ -172,46 +207,52 @@ class SupabaseBoardStore implements BoardRepository {
 
     const { data: last } = await supabase
       .from("posts")
-      .select("res_number")
+      .select("no")
       .eq("thread_id", input.threadId)
-      .order("res_number", { ascending: false })
+      .order("no", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const createdAt = new Date().toISOString();
-    const resNumber = ((last as { res_number?: number } | null)?.res_number ?? 0) + 1;
+    const nextNo = ((last as { no?: number } | null)?.no ?? 0) + 1;
+    let replyToName: string | null = null;
+    let replyToBody: string | null = null;
 
+    if (input.replyTo != null) {
+      const { data: parent } = await supabase
+        .from("posts")
+        .select("name, body")
+        .eq("thread_id", input.threadId)
+        .eq("no", input.replyTo)
+        .maybeSingle();
+
+      if (parent) {
+        replyToName = (parent as { name: string }).name;
+        replyToBody = (parent as { body: string }).body;
+      }
+    }
+
+    const createdAt = new Date().toISOString();
     const { data: postRow, error: postError } = await supabase
       .from("posts")
       .insert({
-        id: createId("post"),
         thread_id: input.threadId,
-        res_number: resNumber,
+        no: nextNo,
         name: input.name,
         body: input.body,
-        created_at: createdAt,
-        poster_id: input.posterId,
-        author_key: input.authorKey,
-        reply_to: input.replyTo ?? null,
         media_url: input.mediaUrl ?? null,
         media_type: input.mediaType ?? null,
+        reply_to_no: input.replyTo ?? null,
+        reply_to_name: replyToName,
+        reply_to_body: replyToBody,
+        user_id: input.authorKey,
+        created_at: createdAt,
       })
-      .select("*")
+      .select(POST_COLUMNS)
       .single();
 
     if (postError || !postRow) {
       throw postError ?? new Error("投稿の作成に失敗しました");
     }
-
-    const { error: threadError } = await supabase
-      .from("threads")
-      .update({
-        updated_at: createdAt,
-        post_count: resNumber,
-      })
-      .eq("id", input.threadId);
-
-    if (threadError) throw threadError;
 
     return mapPost(postRow as PostRow);
   }
@@ -220,7 +261,7 @@ class SupabaseBoardStore implements BoardRepository {
     const supabase = getSupabase();
     const { data: current, error: loadError } = await supabase
       .from("posts")
-      .select("*")
+      .select(POST_COLUMNS)
       .eq("id", input.postId)
       .eq("thread_id", input.threadId)
       .maybeSingle();
@@ -229,29 +270,22 @@ class SupabaseBoardStore implements BoardRepository {
     if (!current) return null;
 
     const row = current as PostRow;
-    if (!row.author_key || row.author_key !== input.authorKey) return null;
-    if (row.deleted_at) return null;
+    if (!row.user_id || row.user_id !== input.authorKey) return null;
+    if (row.body === "削除されました") return null;
 
-    const editedAt = new Date().toISOString();
     const { data: updated, error } = await supabase
       .from("posts")
       .update({
         name: input.name,
         body: input.body,
-        edited_at: editedAt,
       })
       .eq("id", input.postId)
-      .select("*")
+      .select(POST_COLUMNS)
       .single();
 
     if (error || !updated) {
       throw error ?? new Error("投稿の更新に失敗しました");
     }
-
-    await supabase
-      .from("threads")
-      .update({ updated_at: editedAt })
-      .eq("id", input.threadId);
 
     return mapPost(updated as PostRow);
   }
@@ -260,7 +294,7 @@ class SupabaseBoardStore implements BoardRepository {
     const supabase = getSupabase();
     const { data: current, error: loadError } = await supabase
       .from("posts")
-      .select("*")
+      .select(POST_COLUMNS)
       .eq("id", input.postId)
       .eq("thread_id", input.threadId)
       .maybeSingle();
@@ -269,46 +303,43 @@ class SupabaseBoardStore implements BoardRepository {
     if (!current) return null;
 
     const row = current as PostRow;
-    if (!row.author_key || row.author_key !== input.authorKey) return null;
-    if (row.deleted_at) return mapPost(row);
+    if (!row.user_id || row.user_id !== input.authorKey) return null;
+    if (row.body === "削除されました") return mapPost(row);
 
-    const deletedAt = new Date().toISOString();
     const { data: updated, error } = await supabase
       .from("posts")
       .update({
         body: "削除されました",
-        deleted_at: deletedAt,
+        media_url: null,
+        media_type: null,
       })
       .eq("id", input.postId)
-      .select("*")
+      .select(POST_COLUMNS)
       .single();
 
     if (error || !updated) {
       throw error ?? new Error("投稿の削除に失敗しました");
     }
 
-    await supabase
-      .from("threads")
-      .update({ updated_at: deletedAt })
-      .eq("id", input.threadId);
-
     return mapPost(updated as PostRow);
   }
 
   async updateThread(input: UpdateThreadInput): Promise<Thread | null> {
-    const updatedAt = new Date().toISOString();
     const { data, error } = await getSupabase()
       .from("threads")
       .update({
         title: input.title,
-        updated_at: updatedAt,
       })
       .eq("id", input.threadId)
-      .select("*")
+      .select(THREAD_COLUMNS)
       .maybeSingle();
 
     if (error) throw error;
-    return data ? mapThread(data as ThreadRow) : null;
+    if (!data) return null;
+
+    const posts = await this.getPosts(input.threadId);
+    const latest = posts.at(-1)?.createdAt;
+    return mapThread(data as ThreadRow, posts.length, latest);
   }
 
   async deleteThread(input: DeleteThreadInput): Promise<boolean> {
