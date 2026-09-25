@@ -1,5 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import path from "path";
 import type { BoardRepository } from "./board-repository";
 import type {
   AddPostInput,
@@ -13,9 +11,6 @@ type BoardState = {
   threads: Thread[];
   posts: Record<string, Post[]>;
 };
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_PATH = path.join(DATA_DIR, "board.json");
 
 type GlobalBoard = typeof globalThis & {
   __inviteBoard?: BoardState;
@@ -77,39 +72,18 @@ function seedState(): BoardState {
   };
 }
 
-function persist(state: BoardState) {
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(DATA_PATH, JSON.stringify(state, null, 2), "utf8");
-}
-
-function loadState(): BoardState {
-  if (existsSync(DATA_PATH)) {
-    return JSON.parse(readFileSync(DATA_PATH, "utf8")) as BoardState;
-  }
-  const seeded = seedState();
-  persist(seeded);
-  return seeded;
-}
-
 function getState(): BoardState {
   const g = globalThis as GlobalBoard;
   if (!g.__inviteBoard) {
-    g.__inviteBoard = loadState();
+    g.__inviteBoard = seedState();
   }
   return g.__inviteBoard;
 }
 
-function mutate<T>(updater: (state: BoardState) => T): T {
-  const state = getState();
-  const result = updater(state);
-  persist(state);
-  return result;
-}
-
 /**
- * プロトタイプ用ストア。
- * メモリ（HMR 耐性のため globalThis）+ data/board.json に永続化。
- * 後から BoardRepository 実装を差し替えれば DB へ移行できる。
+ * プロトタイプ用のメモリ内ストア。
+ * Vercel ではファイル書き込みが使えないため、fs は使わない。
+ * 同一プロセス内のみ保持（再起動・別インスタンスでは初期データに戻る）。
  */
 class MemoryBoardStore implements BoardRepository {
   async listThreads(): Promise<Thread[]> {
@@ -134,60 +108,58 @@ class MemoryBoardStore implements BoardRepository {
   }
 
   async createThread(input: CreateThreadInput): Promise<ThreadWithPosts> {
-    return mutate((state) => {
-      const id = createId("thread");
-      const createdAt = nowIso();
-      const thread: Thread = {
-        id,
-        title: input.title,
-        createdAt,
-        updatedAt: createdAt,
-        postCount: 1,
-      };
-      const post: Post = {
-        id: createId("post"),
-        threadId: id,
-        resNumber: 1,
-        name: input.name,
-        body: input.body,
-        createdAt,
-        posterId: input.posterId,
-      };
+    const state = getState();
+    const id = createId("thread");
+    const createdAt = nowIso();
+    const thread: Thread = {
+      id,
+      title: input.title,
+      createdAt,
+      updatedAt: createdAt,
+      postCount: 1,
+    };
+    const post: Post = {
+      id: createId("post"),
+      threadId: id,
+      resNumber: 1,
+      name: input.name,
+      body: input.body,
+      createdAt,
+      posterId: input.posterId,
+    };
 
-      state.threads.push(thread);
-      state.posts[id] = [post];
-      return { thread, posts: [post] };
-    });
+    state.threads.push(thread);
+    state.posts[id] = [post];
+    return { thread, posts: [post] };
   }
 
   async addPost(input: AddPostInput): Promise<Post | null> {
-    return mutate((state) => {
-      const threadIndex = state.threads.findIndex(
-        (thread) => thread.id === input.threadId,
-      );
-      const existing = state.posts[input.threadId];
-      if (threadIndex < 0 || !existing) return null;
+    const state = getState();
+    const threadIndex = state.threads.findIndex(
+      (thread) => thread.id === input.threadId,
+    );
+    const existing = state.posts[input.threadId];
+    if (threadIndex < 0 || !existing) return null;
 
-      const createdAt = nowIso();
-      const post: Post = {
-        id: createId("post"),
-        threadId: input.threadId,
-        resNumber: existing.length + 1,
-        name: input.name,
-        body: input.body,
-        createdAt,
-        posterId: input.posterId,
-      };
+    const createdAt = nowIso();
+    const post: Post = {
+      id: createId("post"),
+      threadId: input.threadId,
+      resNumber: existing.length + 1,
+      name: input.name,
+      body: input.body,
+      createdAt,
+      posterId: input.posterId,
+    };
 
-      existing.push(post);
-      state.threads[threadIndex] = {
-        ...state.threads[threadIndex],
-        updatedAt: createdAt,
-        postCount: existing.length,
-      };
+    existing.push(post);
+    state.threads[threadIndex] = {
+      ...state.threads[threadIndex],
+      updatedAt: createdAt,
+      postCount: existing.length,
+    };
 
-      return post;
-    });
+    return post;
   }
 }
 
