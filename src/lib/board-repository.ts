@@ -1,9 +1,11 @@
 import type {
   AddPostInput,
   CreateThreadInput,
+  DeletePostInput,
   Post,
   Thread,
   ThreadWithPosts,
+  UpdatePostInput,
 } from "./types";
 
 /**
@@ -17,4 +19,6 @@ export interface BoardRepository {
   getThreadWithPosts(id: string): Promise<ThreadWithPosts | null>;
   createThread(input: CreateThreadInput): Promise<ThreadWithPosts>;
   addPost(input: AddPostInput): Promise<Post | null>;
+  updatePost(input: UpdatePostInput): Promise<Post | null>;
+  deletePost(input: DeletePostInput): Promise<Post | null>;
 }

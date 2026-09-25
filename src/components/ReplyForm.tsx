@@ -21,6 +21,11 @@ export function ReplyForm({
       {error === "2" ? (
         <p className="mb-2 text-sm text-red-700">入力が長すぎます。</p>
       ) : null}
+      {error === "3" ? (
+        <p className="mb-2 text-sm text-red-700">
+          このレスは編集・削除できません。
+        </p>
+      ) : null}
       <input type="hidden" name="threadId" value={threadId} />
       <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center">
         <label className="w-24 shrink-0 text-sm" htmlFor="reply-name">

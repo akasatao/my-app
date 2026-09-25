@@ -6,7 +6,7 @@ import { getOrCreatePosterSeed, grantInvite, requireInvite } from "@/lib/auth";
 import { getBoard } from "@/lib/board";
 import { displayName } from "@/lib/format";
 import { inviteCodeMatches } from "@/lib/invite-token";
-import { dailyPosterId } from "@/lib/poster-id";
+import { dailyPosterId, stableAuthorKey } from "@/lib/poster-id";
 
 function readField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -37,12 +37,15 @@ export async function createThread(formData: FormData) {
     redirect("/?error=2");
   }
 
-  const posterId = dailyPosterId(await getOrCreatePosterSeed());
+  const seed = await getOrCreatePosterSeed();
+  const posterId = dailyPosterId(seed);
+  const authorKey = stableAuthorKey(seed);
   const created = await getBoard().createThread({
     title,
     name,
     body,
     posterId,
+    authorKey,
   });
 
   revalidatePath("/");
@@ -69,16 +72,94 @@ export async function addReply(formData: FormData) {
     redirect(`/thread/${threadId}?error=2`);
   }
 
-  const posterId = dailyPosterId(await getOrCreatePosterSeed());
+  const seed = await getOrCreatePosterSeed();
+  const posterId = dailyPosterId(seed);
   const post = await getBoard().addPost({
     threadId,
     name,
     body,
     posterId,
+    authorKey: stableAuthorKey(seed),
   });
 
   if (!post) {
     redirect("/");
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/thread/${threadId}`);
+  redirect(`/thread/${threadId}#${post.resNumber}`);
+}
+
+function failPostAction(threadId: string, code: string): never {
+  redirect(`/thread/${threadId}?error=${code}`);
+}
+
+export async function updatePost(formData: FormData) {
+  await requireInvite();
+
+  const threadId = readField(formData, "threadId");
+  const postId = readField(formData, "postId");
+  const body = readField(formData, "body").trim();
+  const name = displayName(readField(formData, "name"));
+
+  if (!threadId) {
+    redirect("/");
+  }
+
+  if (!postId) {
+    failPostAction(threadId, "3");
+  }
+
+  if (!body) {
+    failPostAction(threadId, "1");
+  }
+
+  if (body.length > 4000 || name.length > 20) {
+    failPostAction(threadId, "2");
+  }
+
+  const authorKey = stableAuthorKey(await getOrCreatePosterSeed());
+  const post = await getBoard().updatePost({
+    threadId,
+    postId,
+    authorKey,
+    name,
+    body,
+  });
+
+  if (!post) {
+    failPostAction(threadId, "3");
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/thread/${threadId}`);
+  redirect(`/thread/${threadId}#${post.resNumber}`);
+}
+
+export async function deletePost(formData: FormData) {
+  await requireInvite();
+
+  const threadId = readField(formData, "threadId");
+  const postId = readField(formData, "postId");
+
+  if (!threadId) {
+    redirect("/");
+  }
+
+  if (!postId) {
+    failPostAction(threadId, "3");
+  }
+
+  const authorKey = stableAuthorKey(await getOrCreatePosterSeed());
+  const post = await getBoard().deletePost({
+    threadId,
+    postId,
+    authorKey,
+  });
+
+  if (!post) {
+    failPostAction(threadId, "3");
   }
 
   revalidatePath("/");

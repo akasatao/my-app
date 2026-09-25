@@ -16,3 +16,8 @@ export function dailyPosterId(seed: string, date = new Date()) {
     .digest("base64url")
     .slice(0, 8);
 }
+
+/** 編集・削除の本人判定用（日替わりにしない） */
+export function stableAuthorKey(seed: string) {
+  return createHash("sha256").update(`author:${seed}`).digest("hex");
+}

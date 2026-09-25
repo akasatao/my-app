@@ -14,6 +14,10 @@ export type Post = {
   body: string;
   createdAt: string;
   posterId: string;
+  /** 画面には出さない。投稿者本人の判定用。 */
+  authorKey: string;
+  editedAt?: string;
+  deletedAt?: string;
 };
 
 export type CreateThreadInput = {
@@ -21,6 +25,7 @@ export type CreateThreadInput = {
   name: string;
   body: string;
   posterId: string;
+  authorKey: string;
 };
 
 export type AddPostInput = {
@@ -28,6 +33,21 @@ export type AddPostInput = {
   name: string;
   body: string;
   posterId: string;
+  authorKey: string;
+};
+
+export type UpdatePostInput = {
+  threadId: string;
+  postId: string;
+  authorKey: string;
+  name: string;
+  body: string;
+};
+
+export type DeletePostInput = {
+  threadId: string;
+  postId: string;
+  authorKey: string;
 };
 
 export type ThreadWithPosts = {

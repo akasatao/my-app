@@ -2,9 +2,11 @@ import type { BoardRepository } from "./board-repository";
 import type {
   AddPostInput,
   CreateThreadInput,
+  DeletePostInput,
   Post,
   Thread,
   ThreadWithPosts,
+  UpdatePostInput,
 } from "./types";
 
 type BoardState = {
@@ -48,6 +50,7 @@ function seedState(): BoardState {
           body: "招待制の雑談スレです。\nルールは常識の範囲で。荒らしはスルーで。",
           createdAt,
           posterId: "Ab3kQ91z",
+          authorKey: "",
         },
         {
           id: "post_2",
@@ -57,6 +60,7 @@ function seedState(): BoardState {
           body: ">>1\n了解。まずは動作確認がてら書き込んでみる。",
           createdAt: "2026-09-25T08:05:00.000Z",
           posterId: "nW8pL2cR",
+          authorKey: "",
         },
         {
           id: "post_3",
@@ -66,6 +70,7 @@ function seedState(): BoardState {
           body: "アンカーは >>2 みたいに書けばリンクになります。",
           createdAt: "2026-09-25T08:10:00.000Z",
           posterId: "Ab3kQ91z",
+          authorKey: "",
         },
       ],
     },
@@ -78,6 +83,15 @@ function getState(): BoardState {
     g.__inviteBoard = seedState();
   }
   return g.__inviteBoard;
+}
+
+function touchThread(state: BoardState, threadId: string, updatedAt: string) {
+  const threadIndex = state.threads.findIndex((thread) => thread.id === threadId);
+  if (threadIndex < 0) return;
+  state.threads[threadIndex] = {
+    ...state.threads[threadIndex],
+    updatedAt,
+  };
 }
 
 /**
@@ -126,6 +140,7 @@ class MemoryBoardStore implements BoardRepository {
       body: input.body,
       createdAt,
       posterId: input.posterId,
+      authorKey: input.authorKey,
     };
 
     state.threads.push(thread);
@@ -150,6 +165,7 @@ class MemoryBoardStore implements BoardRepository {
       body: input.body,
       createdAt,
       posterId: input.posterId,
+      authorKey: input.authorKey,
     };
 
     existing.push(post);
@@ -160,6 +176,53 @@ class MemoryBoardStore implements BoardRepository {
     };
 
     return post;
+  }
+
+  async updatePost(input: UpdatePostInput): Promise<Post | null> {
+    const state = getState();
+    const posts = state.posts[input.threadId];
+    if (!posts) return null;
+
+    const index = posts.findIndex((post) => post.id === input.postId);
+    if (index < 0) return null;
+
+    const current = posts[index];
+    if (!current.authorKey || current.authorKey !== input.authorKey) return null;
+    if (current.deletedAt) return null;
+
+    const editedAt = nowIso();
+    const updated: Post = {
+      ...current,
+      name: input.name,
+      body: input.body,
+      editedAt,
+    };
+    posts[index] = updated;
+    touchThread(state, input.threadId, editedAt);
+    return updated;
+  }
+
+  async deletePost(input: DeletePostInput): Promise<Post | null> {
+    const state = getState();
+    const posts = state.posts[input.threadId];
+    if (!posts) return null;
+
+    const index = posts.findIndex((post) => post.id === input.postId);
+    if (index < 0) return null;
+
+    const current = posts[index];
+    if (!current.authorKey || current.authorKey !== input.authorKey) return null;
+    if (current.deletedAt) return current;
+
+    const deletedAt = nowIso();
+    const updated: Post = {
+      ...current,
+      body: "削除されました",
+      deletedAt,
+    };
+    posts[index] = updated;
+    touchThread(state, input.threadId, deletedAt);
+    return updated;
   }
 }
 

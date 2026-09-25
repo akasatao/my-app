@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { BoardHeader } from "@/components/BoardHeader";
 import { PostItem } from "@/components/PostItem";
 import { ReplyForm } from "@/components/ReplyForm";
-import { requireInvite } from "@/lib/auth";
+import { getPosterSeed, requireInvite } from "@/lib/auth";
 import { getBoard } from "@/lib/board";
+import { stableAuthorKey } from "@/lib/poster-id";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,9 @@ export default async function ThreadPage({
     notFound();
   }
 
+  const seed = await getPosterSeed();
+  const authorKey = seed ? stableAuthorKey(seed) : "";
+
   return (
     <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6">
       <BoardHeader title={data.thread.title} />
@@ -38,7 +42,11 @@ export default async function ThreadPage({
       </p>
       <section className="mt-3 border border-gray-400 bg-[#f7f9fc] px-3 py-2 sm:px-4">
         {data.posts.map((post) => (
-          <PostItem key={post.id} post={post} />
+          <PostItem
+            key={post.id}
+            post={post}
+            own={Boolean(authorKey && post.authorKey === authorKey)}
+          />
         ))}
       </section>
       <section className="mt-6" id="form">

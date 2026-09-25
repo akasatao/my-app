@@ -1,8 +1,11 @@
+import { PostActions } from "@/components/PostActions";
 import { PostBody } from "@/components/PostBody";
 import { formatBoardDate } from "@/lib/format";
 import type { Post } from "@/lib/types";
 
-export function PostItem({ post }: { post: Post }) {
+export function PostItem({ post, own }: { post: Post; own: boolean }) {
+  const deleted = Boolean(post.deletedAt);
+
   return (
     <article
       id={String(post.resNumber)}
@@ -17,8 +20,23 @@ export function PostItem({ post }: { post: Post }) {
         <span>：</span>
         <time dateTime={post.createdAt}>{formatBoardDate(post.createdAt)}</time>
         <span className="text-[#555]"> ID:{post.posterId}</span>
+        {post.editedAt && !deleted ? (
+          <span className="text-xs text-gray-600"> 編集済</span>
+        ) : null}
       </header>
-      <PostBody body={post.body} />
+      {deleted ? (
+        <p className="mt-1 text-[15px] text-gray-500">削除されました</p>
+      ) : (
+        <PostBody body={post.body} />
+      )}
+      {own && !deleted ? (
+        <PostActions
+          threadId={post.threadId}
+          postId={post.id}
+          name={post.name}
+          body={post.body}
+        />
+      ) : null}
     </article>
   );
 }

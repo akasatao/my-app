@@ -40,6 +40,11 @@ export async function grantInvite() {
   }
 }
 
+export async function getPosterSeed() {
+  const store = await cookies();
+  return store.get(POSTER_COOKIE)?.value ?? null;
+}
+
 export async function getOrCreatePosterSeed() {
   const store = await cookies();
   const existing = store.get(POSTER_COOKIE)?.value;
