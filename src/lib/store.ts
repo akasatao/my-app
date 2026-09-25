@@ -3,10 +3,12 @@ import type {
   AddPostInput,
   CreateThreadInput,
   DeletePostInput,
+  DeleteThreadInput,
   Post,
   Thread,
   ThreadWithPosts,
   UpdatePostInput,
+  UpdateThreadInput,
 } from "./types";
 
 type BoardState = {
@@ -57,17 +59,18 @@ function seedState(): BoardState {
           threadId,
           resNumber: 2,
           name: "名無しさん",
-          body: ">>1\n了解。まずは動作確認がてら書き込んでみる。",
+          body: "了解。まずは動作確認がてら書き込んでみる。",
           createdAt: "2026-09-25T08:05:00.000Z",
           posterId: "nW8pL2cR",
           authorKey: "",
+          replyTo: 1,
         },
         {
           id: "post_3",
           threadId,
           resNumber: 3,
           name: "テスト",
-          body: "アンカーは >>2 みたいに書けばリンクになります。",
+          body: "返信は長押し、または右クリックから選べます。",
           createdAt: "2026-09-25T08:10:00.000Z",
           posterId: "Ab3kQ91z",
           authorKey: "",
@@ -166,6 +169,9 @@ class MemoryBoardStore implements BoardRepository {
       createdAt,
       posterId: input.posterId,
       authorKey: input.authorKey,
+      replyTo: input.replyTo,
+      mediaUrl: input.mediaUrl,
+      mediaType: input.mediaType,
     };
 
     existing.push(post);
@@ -223,6 +229,31 @@ class MemoryBoardStore implements BoardRepository {
     posts[index] = updated;
     touchThread(state, input.threadId, deletedAt);
     return updated;
+  }
+
+  async updateThread(input: UpdateThreadInput): Promise<Thread | null> {
+    const state = getState();
+    const index = state.threads.findIndex((thread) => thread.id === input.threadId);
+    if (index < 0) return null;
+
+    const updatedAt = nowIso();
+    const updated: Thread = {
+      ...state.threads[index],
+      title: input.title,
+      updatedAt,
+    };
+    state.threads[index] = updated;
+    return updated;
+  }
+
+  async deleteThread(input: DeleteThreadInput): Promise<boolean> {
+    const state = getState();
+    const index = state.threads.findIndex((thread) => thread.id === input.threadId);
+    if (index < 0) return false;
+
+    state.threads.splice(index, 1);
+    delete state.posts[input.threadId];
+    return true;
   }
 }
 

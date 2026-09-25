@@ -18,6 +18,10 @@ export type Post = {
   authorKey: string;
   editedAt?: string;
   deletedAt?: string;
+  /** 返信先のレス番号。本文には埋め込まない。 */
+  replyTo?: number;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 };
 
 export type CreateThreadInput = {
@@ -34,6 +38,9 @@ export type AddPostInput = {
   body: string;
   posterId: string;
   authorKey: string;
+  replyTo?: number;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 };
 
 export type UpdatePostInput = {
@@ -48,6 +55,15 @@ export type DeletePostInput = {
   threadId: string;
   postId: string;
   authorKey: string;
+};
+
+export type UpdateThreadInput = {
+  threadId: string;
+  title: string;
+};
+
+export type DeleteThreadInput = {
+  threadId: string;
 };
 
 export type ThreadWithPosts = {

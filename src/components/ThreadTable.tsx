@@ -1,6 +1,5 @@
-import Link from "next/link";
+import { ThreadCard } from "@/components/ThreadCard";
 import { cardClass } from "@/components/ui";
-import { formatBoardDate } from "@/lib/format";
 import type { Thread } from "@/lib/types";
 
 export function ThreadTable({ threads }: { threads: Thread[] }) {
@@ -19,17 +18,7 @@ export function ThreadTable({ threads }: { threads: Thread[] }) {
     <ul className="space-y-3">
       {threads.map((thread) => (
         <li key={thread.id}>
-          <Link
-            href={`/thread/${thread.id}`}
-            className={`block p-5 transition duration-150 hover:border-sky-200 hover:shadow-md ${cardClass}`}
-          >
-            <h3 className="text-lg font-semibold text-slate-950">{thread.title}</h3>
-            <p className="mt-2 text-sm text-slate-500">
-              {thread.postCount} 件の投稿
-              <span> · </span>
-              {formatBoardDate(thread.createdAt)}
-            </p>
-          </Link>
+          <ThreadCard thread={thread} />
         </li>
       ))}
     </ul>

@@ -1,5 +1,6 @@
 export const INVITE_COOKIE = "board_gate";
 export const POSTER_COOKIE = "board_anon";
+export const USER_NAME_COOKIE = "board_user_name";
 
 export function getInviteCode() {
   return process.env.INVITE_CODE || "secret123";

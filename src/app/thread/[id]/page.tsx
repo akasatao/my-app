@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/AppNav";
+import { ChatComposer } from "@/components/ChatComposer";
 import { PostItem } from "@/components/PostItem";
-import { ReplyForm } from "@/components/ReplyForm";
+import { ReplyComposerProvider } from "@/components/ReplyComposer";
+import { resolveReplyTo } from "@/lib/reply-marker";
 import { getPosterSeed, requireInvite } from "@/lib/auth";
 import { getBoard } from "@/lib/board";
 import { stableAuthorKey } from "@/lib/poster-id";
@@ -27,31 +29,33 @@ export default async function ThreadPage({
 
   const seed = await getPosterSeed();
   const authorKey = seed ? stableAuthorKey(seed) : "";
+  const postsByNumber = new Map(data.posts.map((post) => [post.resNumber, post]));
 
   return (
-    <PageShell>
+    <PageShell extraBottom>
       <p className="mb-4 text-sm">
         <Link href="/" className="font-medium text-sky-600 hover:text-sky-700">
           ← スレッド一覧
         </Link>
-        <span className="mx-2 text-slate-300">·</span>
-        <a href="#form" className="font-medium text-sky-600 hover:text-sky-700">
-          返信フォームへ
-        </a>
       </p>
       <h1 className="mb-6 text-3xl font-bold text-slate-950">{data.thread.title}</h1>
-      <section className="space-y-4">
-        {data.posts.map((post) => (
-          <PostItem
-            key={post.id}
-            post={post}
-            own={Boolean(authorKey && post.authorKey === authorKey)}
-          />
-        ))}
-      </section>
-      <section className="mt-10" id="form">
-        <ReplyForm threadId={data.thread.id} error={error} />
-      </section>
+      <ReplyComposerProvider>
+        <section className="space-y-3">
+          {data.posts.map((post) => {
+            const replyTo = resolveReplyTo(post);
+            const parent = replyTo != null ? (postsByNumber.get(replyTo) ?? null) : null;
+            return (
+              <PostItem
+                key={post.id}
+                post={post}
+                parent={parent}
+                own={Boolean(authorKey && post.authorKey === authorKey)}
+              />
+            );
+          })}
+        </section>
+        <ChatComposer threadId={data.thread.id} error={error} />
+      </ReplyComposerProvider>
     </PageShell>
   );
 }

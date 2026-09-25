@@ -17,8 +17,7 @@ export default async function Home({
 
   return (
     <PageShell>
-      <h1 className="mb-2 text-3xl font-bold text-slate-950">スレッド</h1>
-      <p className="mb-6 text-slate-500">招待メンバーだけの静かなラウンジです。</p>
+      <h1 className="mb-6 text-3xl font-bold text-slate-950">スレッド</h1>
       <section>
         <ThreadTable threads={threads} />
       </section>

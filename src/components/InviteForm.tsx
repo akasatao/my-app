@@ -36,12 +36,35 @@ export function InviteForm({ error }: { error?: string }) {
       <p className="mt-2 text-center text-sm leading-relaxed text-slate-500">
         招待コードを持つメンバーだけが入れる、クローズドなラウンジです。
       </p>
-      {error ? (
+      {error === "1" ? (
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">
           招待コードが違います。
         </p>
       ) : null}
-      <label className="mt-6 mb-1.5 block text-sm font-medium text-slate-700" htmlFor="code">
+      {error === "name" ? (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">
+          ユーザーネームを入力してください。
+        </p>
+      ) : null}
+      {error === "long" ? (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">
+          ユーザーネームは20文字以内にしてください。
+        </p>
+      ) : null}
+      <label className="mt-6 mb-1.5 block text-sm font-medium text-slate-700" htmlFor="userName">
+        ユーザーネーム
+      </label>
+      <input
+        id="userName"
+        name="userName"
+        type="text"
+        required
+        maxLength={20}
+        autoComplete="nickname"
+        placeholder="ラウンジで使う表示名"
+        className={fieldClass}
+      />
+      <label className="mt-4 mb-1.5 block text-sm font-medium text-slate-700" htmlFor="code">
         招待コード
       </label>
       <input

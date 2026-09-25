@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getOrCreatePosterSeed, grantInvite, requireInvite } from "@/lib/auth";
+import { getOrCreatePosterSeed, getUserName, grantInvite, requireInvite, saveUserName } from "@/lib/auth";
 import { getBoard } from "@/lib/board";
 import { displayName } from "@/lib/format";
 import { inviteCodeMatches } from "@/lib/invite-token";
 import { dailyPosterId, stableAuthorKey } from "@/lib/poster-id";
+import { stripLeadingReplyMarker } from "@/lib/reply-marker";
+import { saveReply } from "@/lib/save-reply";
 
 function readField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -15,11 +17,39 @@ function readField(formData: FormData, key: string) {
 
 export async function submitInvite(formData: FormData) {
   const code = readField(formData, "code");
+  const userName = readField(formData, "userName").trim();
+
+  if (!userName) {
+    redirect("/invite?error=name");
+  }
+
+  if (userName.length > 20) {
+    redirect("/invite?error=long");
+  }
+
   if (!inviteCodeMatches(code)) {
     redirect("/invite?error=1");
   }
-  await grantInvite();
+
+  await grantInvite(userName);
   redirect("/");
+}
+
+export async function updateUserName(formData: FormData) {
+  await requireInvite();
+  const userName = readField(formData, "userName").trim();
+
+  if (!userName) {
+    redirect("/settings?error=name");
+  }
+
+  if (userName.length > 20) {
+    redirect("/settings?error=long");
+  }
+
+  await saveUserName(userName);
+  revalidatePath("/", "layout");
+  redirect("/settings?saved=1");
 }
 
 export async function createThread(formData: FormData) {
@@ -27,7 +57,7 @@ export async function createThread(formData: FormData) {
 
   const title = readField(formData, "title").trim();
   const body = readField(formData, "body").trim();
-  const name = displayName(readField(formData, "name"));
+  const name = displayName(await getUserName());
 
   if (!title || !body) {
     redirect("/?error=1");
@@ -57,38 +87,41 @@ export async function addReply(formData: FormData) {
   await requireInvite();
 
   const threadId = readField(formData, "threadId");
-  const body = readField(formData, "body").trim();
-  const name = displayName(readField(formData, "name"));
+  const replyToRaw = readField(formData, "replyTo").trim();
+  const body = readField(formData, "body");
+  const mediaUrl = readField(formData, "mediaUrl");
+  const mediaType = readField(formData, "mediaType");
 
   if (!threadId) {
     redirect("/");
   }
 
-  if (!body) {
+  const replyTo =
+    replyToRaw && /^\d+$/.test(replyToRaw) ? Number(replyToRaw) : undefined;
+
+  const result = await saveReply({
+    threadId,
+    body,
+    replyTo,
+    mediaUrl,
+    mediaType,
+  });
+
+  if (result.error === "empty") {
     redirect(`/thread/${threadId}?error=1`);
   }
 
-  if (body.length > 4000 || name.length > 20) {
+  if (result.error === "too_long" || result.error === "media") {
     redirect(`/thread/${threadId}?error=2`);
   }
 
-  const seed = await getOrCreatePosterSeed();
-  const posterId = dailyPosterId(seed);
-  const post = await getBoard().addPost({
-    threadId,
-    name,
-    body,
-    posterId,
-    authorKey: stableAuthorKey(seed),
-  });
-
-  if (!post) {
+  if (!result.post) {
     redirect("/");
   }
 
   revalidatePath("/");
   revalidatePath(`/thread/${threadId}`);
-  redirect(`/thread/${threadId}#${post.resNumber}`);
+  redirect(`/thread/${threadId}#${result.post.resNumber}`);
 }
 
 function failPostAction(threadId: string, code: string): never {
@@ -100,7 +133,7 @@ export async function updatePost(formData: FormData) {
 
   const threadId = readField(formData, "threadId");
   const postId = readField(formData, "postId");
-  const body = readField(formData, "body").trim();
+  const body = stripLeadingReplyMarker(readField(formData, "body").trim());
   const name = displayName(readField(formData, "name"));
 
   if (!threadId) {

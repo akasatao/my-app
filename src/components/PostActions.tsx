@@ -23,7 +23,7 @@ export function PostActions({
 
   if (editing) {
     return (
-      <form action={updatePost} className="mt-4 space-y-3">
+      <form action={updatePost} className="mt-4 space-y-3" data-no-reply-menu>
         <input type="hidden" name="threadId" value={threadId} />
         <input type="hidden" name="postId" value={postId} />
         <div>
@@ -67,7 +67,7 @@ export function PostActions({
   }
 
   return (
-    <div className="mt-4 flex flex-wrap gap-4 text-sm">
+    <div className="mt-4 flex flex-wrap gap-4 text-sm" data-no-reply-menu>
       <button
         type="button"
         onClick={() => setEditing(true)}

@@ -13,18 +13,6 @@ export function NewThreadForm({ error }: { error?: string }) {
       ) : null}
       <div className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="name">
-            表示名
-          </label>
-          <input
-            id="name"
-            name="name"
-            placeholder="名無しさん"
-            maxLength={20}
-            className={`${fieldClass} sm:max-w-xs`}
-          />
-        </div>
-        <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="title">
             タイトル
           </label>

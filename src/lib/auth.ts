@@ -4,6 +4,7 @@ import {
   computeInviteToken,
   INVITE_COOKIE,
   POSTER_COOKIE,
+  USER_NAME_COOKIE,
 } from "./invite-token";
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
@@ -19,7 +20,7 @@ export async function requireInvite() {
   }
 }
 
-export async function grantInvite() {
+export async function grantInvite(userName: string) {
   const store = await cookies();
   store.set(INVITE_COOKIE, computeInviteToken(), {
     httpOnly: true,
@@ -37,6 +38,33 @@ export async function grantInvite() {
       maxAge: THIRTY_DAYS,
       secure: process.env.NODE_ENV === "production",
     });
+  }
+
+  await saveUserName(userName);
+}
+
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: THIRTY_DAYS,
+  secure: process.env.NODE_ENV === "production",
+};
+
+export async function saveUserName(name: string) {
+  const trimmed = name.trim();
+  const store = await cookies();
+  store.set(USER_NAME_COOKIE, encodeURIComponent(trimmed), cookieOptions);
+}
+
+export async function getUserName() {
+  const store = await cookies();
+  const raw = store.get(USER_NAME_COOKIE)?.value;
+  if (!raw) return "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
   }
 }
 
