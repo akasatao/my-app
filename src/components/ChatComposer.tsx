@@ -16,15 +16,31 @@ export function ChatComposer({
   error?: string;
 }) {
   const { target } = useReplyComposer();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+  const avRef = useRef<HTMLInputElement>(null);
+  const mediaRef = useRef<HTMLInputElement>(null);
   const [media, setMedia] = useState<{ url: string; type: MediaType } | null>(null);
   const [mediaError, setMediaError] = useState("");
+
+  function assignNamedFile(file: File | null) {
+    const input = mediaRef.current;
+    if (!input) return;
+    const transfer = new DataTransfer();
+    if (file) transfer.items.add(file);
+    input.files = transfer.files;
+  }
+
+  function clearPickers() {
+    if (imageRef.current) imageRef.current.value = "";
+    if (avRef.current) avRef.current.value = "";
+  }
 
   function clearMedia() {
     if (media?.url.startsWith("blob:")) URL.revokeObjectURL(media.url);
     setMedia(null);
     setMediaError("");
-    if (fileRef.current) fileRef.current.value = "";
+    clearPickers();
+    assignNamedFile(null);
   }
 
   function attachFile(file: File) {
@@ -43,6 +59,7 @@ export function ChatComposer({
       if (current?.url.startsWith("blob:")) URL.revokeObjectURL(current.url);
       return { url: URL.createObjectURL(file), type };
     });
+    assignNamedFile(file);
     setMediaError("");
     return true;
   }
@@ -56,12 +73,8 @@ export function ChatComposer({
     ].filter((file): file is File => Boolean(file));
 
     for (const file of candidates) {
-      if (!detectMediaType(file)) continue;
-      if (fileRef.current) {
-        const transfer = new DataTransfer();
-        transfer.items.add(file);
-        fileRef.current.files = transfer.files;
-      }
+      if (detectMediaType(file) !== "image") continue;
+      clearPickers();
       attachFile(file);
       return true;
     }
@@ -69,12 +82,35 @@ export function ChatComposer({
     return false;
   }
 
-  function onFile(event: React.ChangeEvent<HTMLInputElement>) {
+  function onImageFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (detectMediaType(file) !== "image") {
+      setMediaError("画像ファイルを選んでください。");
+      event.target.value = "";
+      return;
+    }
     if (!attachFile(file)) {
       event.target.value = "";
+      return;
     }
+    if (avRef.current) avRef.current.value = "";
+  }
+
+  function onAvFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const type = detectMediaType(file);
+    if (type !== "video" && type !== "audio") {
+      setMediaError("動画または音声ファイルを選んでください。");
+      event.target.value = "";
+      return;
+    }
+    if (!attachFile(file)) {
+      event.target.value = "";
+      return;
+    }
+    if (imageRef.current) imageRef.current.value = "";
   }
 
   useEffect(() => {
@@ -140,21 +176,38 @@ export function ChatComposer({
           <input type="hidden" name="threadId" value={threadId} />
           <input type="hidden" name="replyTo" value={target ? String(target.resNumber) : ""} />
           <input type="hidden" name="mediaType" value={media?.type ?? ""} />
+          <input ref={mediaRef} type="file" name="media" className="hidden" tabIndex={-1} />
           <input
-            ref={fileRef}
+            ref={imageRef}
             type="file"
-            name="media"
-            accept="image/*,video/*,audio/*"
+            accept="image/*"
             className="hidden"
-            onChange={onFile}
+            onChange={onImageFile}
+          />
+          <input
+            ref={avRef}
+            type="file"
+            accept="video/*,audio/*"
+            className="hidden"
+            onChange={onAvFile}
           />
           <button
             type="button"
-            aria-label="写真・動画・音声を添付"
-            onClick={() => fileRef.current?.click()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg text-slate-600 transition hover:border-sky-200 hover:text-sky-700"
+            aria-label="動画または音声を添付"
+            onClick={() => avRef.current?.click()}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-medium leading-none text-slate-600 transition hover:border-sky-200 hover:text-sky-700"
           >
-            📷
+            ＋
+          </button>
+          <button
+            type="button"
+            aria-label="画像を添付"
+            onClick={() => imageRef.current?.click()}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-sky-200 hover:text-sky-700"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+              <path d="M19 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 12H5l4.5-6 3.5 4.5 2.5-3.2L19 17ZM8.5 10A1.5 1.5 0 1 0 8.5 7a1.5 1.5 0 0 0 0 3Z" />
+            </svg>
           </button>
           <textarea
             id="reply-body"
